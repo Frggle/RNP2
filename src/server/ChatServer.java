@@ -1,142 +1,158 @@
 package server;
 
-/*
- * TCPServer.java
- *
- * Version 3.1
- * Autor: M. Huebner HAW Hamburg (nach Kurose/Ross)
- * Zweck: TCP-Server Beispielcode:
- *        Bei Dienstanfrage einen Arbeitsthread erzeugen, der eine Anfrage bearbeitet:
- *        einen String empfangen, in Grossbuchstaben konvertieren und zuruecksenden
- *        Maximale Anzahl Worker-Threads begrenzt durch Semaphore
- *  
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * A multithreaded chat room server.  When a client connects the
+ * server requests a screen name by sending the client the
+ * text "SUBMITNAME", and keeps requesting a name until
+ * a unique one is received.  After a client submits a unique
+ * name, the server acknowledges with "NAMEACCEPTED".  Then
+ * all messages from that client will be broadcast to all other
+ * clients that have submitted a unique screen name.  The
+ * broadcast messages are prefixed with "MESSAGE ".
  */
-import java.io.*;
-import java.net.*;
-import java.util.concurrent.*;
-
-
 public class ChatServer {
-   /* TCP-Server, der Verbindungsanfragen entgegennimmt */
 
-   /* Semaphore begrenzt die Anzahl parallel laufender Worker-Threads  */
-   public Semaphore workerThreadsSem;
+    /**
+     * The port that the server listens on.
+     */
+    private static final int PORT = 56789;
 
-   /* Portnummer */
-   public final int serverPort;
-   
-   /* Anzeige, ob der Server-Dienst weiterhin benoetigt wird */
-   public boolean serviceRequested = true;
-		 
-   /* Konstruktor mit Parametern: Server-Port, Maximale Anzahl paralleler Worker-Threads*/
-   public ChatServer(int serverPort, int maxThreads) {
-      this.serverPort = serverPort;
-      this.workerThreadsSem = new Semaphore(maxThreads);
-   }
+    /**
+     * The set of all names of clients in the chat room.  Maintained
+     * so that we can check that new clients are not registering name
+     * already in use.
+     */
+    private static Set<String> users = new HashSet<String>();
 
-   public void startServer() {
-      ServerSocket welcomeSocket; // TCP-Server-Socketklasse
-      Socket connectionSocket; // TCP-Standard-Socketklasse
+    /**
+     * The set of all the print writers for all the clients.  
+     * This set is kept so we can easily broadcast messages.
+     */
+    private static Set<PrintWriter> writers = new HashSet<PrintWriter>();
 
-      int nextThreadNumber = 0;
+    /**
+     * The appplication main method, which just listens on a port and
+     * spawns handler threads.
+     */
+    public static void main(String[] args) throws Exception {
+        System.out.print("The chat server is running");
+        ServerSocket listener = new ServerSocket(PORT);
+    	System.out.println(" on IP: " + InetAddress.getLocalHost().getHostAddress());
+    	
+        Socket connectionSocket;
+        try {
+            while (true) {
+            	connectionSocket = listener.accept();
+            	new Handler(connectionSocket).start();
+//                new Handler(listener.accept()).start();
+            }    
+        } finally {
+            listener.close();
+        }
+    }
 
-      try {
-         /* Server-Socket erzeugen */
-         welcomeSocket = new ServerSocket(serverPort);
+    /**
+     * A handler thread class.  Handlers are spawned from the listening
+     * loop and are responsible for a dealing with a single client
+     * and broadcasting its messages.
+     */
+    private static class Handler extends Thread {
+        private String name;
+        private Socket socket;
+        private BufferedReader in;
+        private PrintWriter out;
+        private List<String> session = new ArrayList<String>();
 
-         while (serviceRequested) { 
-				workerThreadsSem.acquire();  // Blockieren, wenn max. Anzahl Worker-Threads erreicht
-				
-            System.out.println("TCP Server is waiting for connection - listening TCP port " + serverPort);
-            /*
-             * Blockiert auf Verbindungsanfrage warten --> nach Verbindungsaufbau
-             * Standard-Socket erzeugen und an connectionSocket zuweisen
-             */
-            connectionSocket = welcomeSocket.accept();
+        /**
+         * Constructs a handler thread, squirreling away the socket.
+         * All the interesting work is done in the run method.
+         */
+        public Handler(Socket socket) {
+            this.socket = socket;
+        }
 
-            /* Neuen Arbeits-Thread erzeugen und die Nummer, den Socket sowie das Serverobjekt uebergeben */
-            (new TCPWorkerThread(++nextThreadNumber, connectionSocket, this)).start();
-          }
-      } catch (Exception e) {
-         System.err.println(e.toString());
-      }
-   }
+        /**
+         * Services this thread's client by repeatedly requesting a
+         * screen name until a unique one has been submitted, then
+         * acknowledges the name and registers the output stream for
+         * the client in a global set, then repeatedly gets inputs and
+         * broadcasts them.
+         */
+        public void run() {
+            try {
 
-   public static void main(String[] args) {
-      /* Erzeuge Server und starte ihn */
-      ChatServer myServer = new ChatServer(56789, 1);
-      myServer.startServer();
-   }
-}
+                // Create character streams for the socket.
+                in = new BufferedReader(new InputStreamReader(
+                    socket.getInputStream()));
+                out = new PrintWriter(socket.getOutputStream(), true);
 
-// ----------------------------------------------------------------------------
+                // Request a name from this client.  Keep requesting until
+                // a name is submitted that is not already used.  Note that
+                // checking for the existence of a name and adding the name
+                // must be done while locking the set of names.
+                while (true) {
+                    out.println("SUBMITNAME"); // Bestaetigung vom Server an Client
+                    name = in.readLine();
+                    if (name == null) {
+                        return;
+                    }
+                    synchronized (users) {
+                        if (!users.contains(name)) {
+                            users.add(name);
+                            break;
+                        }
+                    }
+                }
 
-class TCPWorkerThread extends Thread {
-   /*
-    * Arbeitsthread, der eine existierende Socket-Verbindung zur Bearbeitung
-    * erhaelt
-    */
-   private int name;
-   private Socket socket;
-   private ChatServer server;
-   private BufferedReader inFromClient;
-   private DataOutputStream outToClient;
-   boolean workerServiceRequested = true; // Arbeitsthread beenden?
+                // Now that a successful name has been chosen, add the
+                // socket's print writer to the set of all writers so
+                // this client can receive broadcast messages.
+                out.println("NAMEACCEPTED");
+                writers.add(out);
 
-   public TCPWorkerThread(int num, Socket sock, ChatServer server) {
-      /* Konstruktor */
-      this.name = num;
-      this.socket = sock;
-      this.server = server;
-   }
-
-   public void run() {
-      String capitalizedSentence;
-
-      System.out.println("TCP Worker Thread " + name +
-            " is running until QUIT is received!");
-
-      try {
-         /* Socket-Basisstreams durch spezielle Streams filtern */
-         inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-         outToClient = new DataOutputStream(socket.getOutputStream());
-
-         while (workerServiceRequested) {
-            /* String vom Client empfangen und in Grossbuchstaben umwandeln */
-            capitalizedSentence = readFromClient().toUpperCase();
-
-            /* Modifizierten String an Client senden */
-            writeToClient(capitalizedSentence);
-
-            /* Test, ob Arbeitsthread beendet werden soll */
-            if (capitalizedSentence.startsWith("QUIT")) {
-               workerServiceRequested = false;
+                // Accept messages from this client and broadcast them.
+                // Ignore other clients that cannot be broadcasted to.
+                while (true) {
+                    String input = in.readLine();
+                    if (input == null) {
+                        return;
+                    }
+                    for (PrintWriter writer : writers) {
+                    	session.add(name + ": " + input);
+                        writer.println("MESSAGE " + name + ": " + input);
+                    }
+                    if(input.toUpperCase().startsWith("QUIT")) {
+                    	out.println("QUIT");
+                    }
+                }
+            } catch (IOException e) {
+                System.out.println(e);
+            } finally {
+                // This client is going down!  Remove its name and its print
+                // writer from the sets, and close its socket.
+                if (name != null) {
+                    users.remove(name);
+                }
+                if (out != null) {
+                    writers.remove(out);
+                }
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                }
             }
-         }
-
-         /* Socket-Streams schliessen --> Verbindungsabbau */
-         socket.close();
-      } catch (IOException e) {
-         System.err.println("Connection aborted by client!");
-      } finally {
-         System.out.println("TCP Worker Thread " + name + " stopped!");
-         /* Platz fuer neuen Thread freigeben */
-			server.workerThreadsSem.release();         
-      }
-   }
-
-   private String readFromClient() throws IOException {
-      /* Lies die naechste Anfrage-Zeile (request) vom Client */
-      String request = inFromClient.readLine();
-      System.out.println("TCP Worker Thread " + name + " detected job: " + request);
-
-      return request;
-   }
-
-   private void writeToClient(String reply) throws IOException {
-      /* Sende den String als Antwortzeile (mit CRLF) zum Client */
-      outToClient.writeBytes(reply + '\r' + '\n');
-      System.out.println("TCP Worker Thread " + name +
-            " has written the message: " + reply);
-   }
+        }
+    }
 }

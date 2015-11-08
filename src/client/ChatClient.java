@@ -1,97 +1,130 @@
 package client;
 
-/*
- * TCPClient.java
- *
- * Version 3.1
- * Autor: M. Huebner HAW Hamburg (nach Kurose/Ross)
- * Zweck: TCP-Client Beispielcode:
- *        TCP-Verbindung zum Server aufbauen, einen vom Benutzer eingegebenen
- *        String senden, den String in Grossbuchstaben empfangen und ausgeben
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+
+/**
+ * A simple Swing-based client for the chat server. Graphically it is a frame with a text field for entering messages
+ * and a textarea to see the whole dialog. The client follows the Chat Protocol which is as follows. When the server
+ * sends "SUBMITNAME" the client replies with the desired screen name. The server will keep sending "SUBMITNAME"
+ * requests as long as the client submits screen names that are already in use. When the server sends a line beginning
+ * with "NAMEACCEPTED" the client is now allowed to start sending the server arbitrary strings to be broadcast to all
+ * chatters connected to the server. When the server sends a line beginning with "MESSAGE " then all characters
+ * following this string should be displayed in its message area.
  */
-
-import java.io.*;
-import java.net.*;
-import java.util.Scanner;
-
 public class ChatClient {
-    /* Portnummer */
-    private final int serverPort;
-
-    /* Hostname */
-    private final String hostname;
-
-    private Socket clientSocket; // TCP-Standard-Socketklasse
-
-    private DataOutputStream outToServer; // Ausgabestream zum Server
-    private BufferedReader inFromServer; // Eingabestream vom Server
-
-    private boolean serviceRequested = true; // Client beenden?
-
-    public ChatClient(String hostname, int serverPort) {
-        this.serverPort = serverPort;
-        this.hostname = hostname;
-    }
-
-    public void startJob() {
-        /* Client starten. Ende, wenn quit eingegeben wurde */
-        Scanner inFromUser;
-        String sentence; // vom User uebergebener String
-        String modifiedSentence; // vom Server modifizierter String
-
-        try {
-            /* Socket erzeugen --> Verbindungsaufbau mit dem Server */
-            clientSocket = new Socket(hostname, serverPort);
-
-            /* Socket-Basisstreams durch spezielle Streams filtern */
-            outToServer = new DataOutputStream(clientSocket.getOutputStream());
-            inFromServer = new BufferedReader(new InputStreamReader(
-                    clientSocket.getInputStream()));
-
-            /* Konsolenstream (Standardeingabe) initialisieren */
-            inFromUser = new Scanner(System.in);
-
-            while (serviceRequested) {
-                System.out.println("ENTER TCP-DATA: ");
-                /* String vom Benutzer (Konsoleneingabe) holen */
-                sentence = inFromUser.nextLine();
-
-                /* String an den Server senden */
-                writeToServer(sentence);
-
-                /* Modifizierten String vom Server empfangen */
-                modifiedSentence = readFromServer();
-
-                /* Test, ob Client beendet werden soll */
-                if (modifiedSentence.startsWith("QUIT")) {
-                    serviceRequested = false;
-                }
-            }
-
-            /* Socket-Streams schliessen --> Verbindungsabbau */
-            clientSocket.close();
-        } catch (IOException e) {
-            System.err.println("Connection aborted by server!");
-        }
-        System.out.println("TCP Client stopped!");
-    }
-
-    private void writeToServer(String request) throws IOException {
-        /* Sende eine Zeile (mit CRLF) zum Server */
-        outToServer.writeBytes(request + '\r' + '\n');
-        System.out.println("TCP Client has sent the message: " + request);
-    }
-
-    private String readFromServer() throws IOException {
-        /* Lies die Antwort (reply) vom Server */
-        String reply = inFromServer.readLine();
-        System.out.println("TCP Client got from Server: " + reply);
-        return reply;
-    }
-
-    public static void main(String[] args) {
-        /* Test: Erzeuge Client und starte ihn. */
-        ChatClient myClient = new ChatClient("localhost", 56789);
-        myClient.startJob();
-    }
+	
+	private BufferedReader in;
+	private PrintWriter out;
+	private JFrame frame = new JFrame("HAW - RN");
+	private JTextField textField = new JTextField(40);
+	private JTextArea messageArea = new JTextArea(8, 40);
+	
+	private static ChatClient client;
+	private String nickname = "anonym";
+	private String hostname;	
+	private final int PORT = 56789;
+	
+	/**
+	 * Constructs the client by laying out the GUI and registering a listener with the textfield so that pressing Return
+	 * in the listener sends the textfield contents to the server. Note however that the textfield is initially NOT
+	 * editable, and only becomes editable AFTER the client receives the NAMEACCEPTED message from the server.
+	 */
+	public ChatClient() {
+		
+		// Layout GUI
+		textField.setEditable(false);
+		messageArea.setEditable(false);
+		frame.getContentPane().add(textField, "North");
+		frame.getContentPane().add(new JScrollPane(messageArea), "Center");
+		frame.pack();
+		
+		// Add Listeners
+		textField.addActionListener(new ActionListener() {
+			/**
+			 * Responds to pressing the enter key in the textfield by sending the contents of the text field to the
+			 * server. Then clear the text area in preparation for the next message.
+			 */
+			public void actionPerformed(ActionEvent e) {
+				out.println(textField.getText());
+				textField.setText("");
+			}
+		});
+	}
+	
+	/**
+	 * Prompt for and return the address of the server.
+	 */
+	private String getServerAddress() {
+		do{
+			hostname = JOptionPane.showInputDialog(frame, "Enter IP Address of the Server:", "Welcome to RNP",
+					JOptionPane.QUESTION_MESSAGE); 
+		} while(hostname.isEmpty());
+		return hostname;
+	}
+	
+	/**
+	 * Prompt for and return the desired screen name.
+	 */
+	private String getName() {
+		do{
+			nickname = JOptionPane.showInputDialog(frame, "Choose a screen name:", "Screen name selection",
+					JOptionPane.PLAIN_MESSAGE);		
+		} while(nickname.isEmpty());
+		return nickname;
+	}
+	
+	/**
+	 * Connects to the server then enters the processing loop.
+	 */
+	private void run() throws IOException {
+		
+		// Make connection and initialize streams
+		String serverAddress = getServerAddress();
+		Socket socket = new Socket(serverAddress, PORT);
+		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		out = new PrintWriter(socket.getOutputStream(), true);
+		
+		boolean serviceRequested = true;
+		
+		// Process all messages from server, according to the protocol.
+		while(serviceRequested) {
+			String line = in.readLine();
+			if(line.startsWith("SUBMITNAME")) {
+				out.println(getName());
+			} else if(line.startsWith("NAMEACCEPTED")) {
+				textField.setEditable(true);
+			} else if(line.startsWith("MESSAGE")) {
+				messageArea.append(line.substring(8) + "\n");
+			} else if(line.startsWith("QUIT")) {
+				serviceRequested = false;
+				out.println(nickname + " has disconnected");
+				JOptionPane.showMessageDialog(frame, "You left the conversation.", "Good bye", JOptionPane.OK_OPTION);
+				frame.dispose();
+			}
+		}
+		socket.close();
+	}
+	
+	/**
+	 * Runs the client as an application with a closeable frame.
+	 */
+	public static void main(String[] args) throws Exception {
+		//        ChatClient client = new ChatClient();
+		client = new ChatClient();
+		client.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		client.frame.setLocationRelativeTo(null);
+		client.frame.setVisible(true);
+		client.run();
+	}
 }
