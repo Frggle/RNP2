@@ -96,7 +96,7 @@ public class ChatClient {
 		out = new PrintWriter(socket.getOutputStream(), true);
 		
 		boolean serviceRequested = true;
-		
+				
 		// Process all messages from server, according to the protocol.
 		while(serviceRequested) {
 			String line = in.readLine();

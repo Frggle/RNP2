@@ -7,10 +7,17 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javax.swing.JFrame;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 
 /**
  * A multithreaded chat room server.  When a client connects the
@@ -47,6 +54,9 @@ public class ChatServer {
      */
     private static List<String> session = new ArrayList<String>();
 
+    private static JFrame frame;
+    private static JTextArea textArea;
+    
     /**
      * The appplication main method, which just listens on a port and
      * spawns handler threads.
@@ -55,6 +65,21 @@ public class ChatServer {
         System.out.print("The chat server is running");
         ServerSocket listener = new ServerSocket(PORT);
     	System.out.println(" on IP: " + InetAddress.getLocalHost().getHostAddress());
+    	
+    	frame = new JFrame("Chat Server - Log");
+    	textArea = new JTextArea(20, 40);
+    	textArea.setEditable(false);
+        frame.getContentPane().add(new JScrollPane(textArea), "Center");
+        frame.pack();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
+        
+        DateFormat dateformat = new SimpleDateFormat("yyyy/MM/dd");
+        Calendar cal = Calendar.getInstance();
+        textArea.append("The Chat Server ist running");
+        textArea.append(" on IP: " + InetAddress.getLocalHost().getHostAddress() + "\n");
+        textArea.append("---" + dateformat.format(cal.getTime()) + "---\n");
+        textArea.append("\n");
     	
         Socket connectionSocket;
         try {
@@ -125,7 +150,7 @@ public class ChatServer {
                 // this client can receive broadcast messages.
                 out.println("NAMEACCEPTED");
                 writers.add(out);
-
+                
                 // Accept messages from this client and broadcast them.
                 // Ignore other clients that cannot be broadcasted to.
                 while (true) {
@@ -133,13 +158,16 @@ public class ChatServer {
                     if (input == null) {
                         return;
                     }
+                    DateFormat dateFormat = new SimpleDateFormat("HH:MM");
+                    Date date = new Date();
                     for (PrintWriter writer : writers) {
-                    	session.add(name + ": " + input);
-                        writer.println("MESSAGE " + name + ": " + input);
+                    	session.add(name + " (" + dateFormat.format(date) + ") : " + input);
+                        writer.println("MESSAGE " + name + " (" + dateFormat.format(date) + ") : " + input);
                     }
                     if(input.toUpperCase().startsWith("QUIT")) {
                     	out.println("QUIT");
                     }
+                    textArea.append(session.get(session.size()-1) + "\n");
                 }
             } catch (IOException e) {
                 System.out.println(e);
@@ -151,11 +179,6 @@ public class ChatServer {
                 }
                 if (out != null) {
                     writers.remove(out);
-                }
-                
-                // TODO
-                for(String s : session) {
-                	System.err.println(s);
                 }
                 try {
                     socket.close();
