@@ -102,6 +102,7 @@ public class ChatClient {
 			String line = in.readLine();
 			if(line.startsWith("SUBMITNAME")) {
 				out.println(getName());
+				frame.setTitle(frame.getTitle() + " as " + nickname);
 			} else if(line.startsWith("NAMEACCEPTED")) {
 				textField.setEditable(true);
 			} else if(line.startsWith("MESSAGE")) {

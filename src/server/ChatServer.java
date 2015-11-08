@@ -43,6 +43,11 @@ public class ChatServer {
     private static Set<PrintWriter> writers = new HashSet<PrintWriter>();
 
     /**
+     * TODO
+     */
+    private static List<String> session = new ArrayList<String>();
+
+    /**
      * The appplication main method, which just listens on a port and
      * spawns handler threads.
      */
@@ -73,7 +78,6 @@ public class ChatServer {
         private Socket socket;
         private BufferedReader in;
         private PrintWriter out;
-        private List<String> session = new ArrayList<String>();
 
         /**
          * Constructs a handler thread, squirreling away the socket.
@@ -147,6 +151,11 @@ public class ChatServer {
                 }
                 if (out != null) {
                     writers.remove(out);
+                }
+                
+                // TODO
+                for(String s : session) {
+                	System.err.println(s);
                 }
                 try {
                     socket.close();
