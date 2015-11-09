@@ -2,6 +2,9 @@ package client;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -49,6 +52,15 @@ public class ChatClient {
 		frame.getContentPane().add(new JScrollPane(messageArea), "Center");
 		frame.pack();
 		
+		// 
+		frame.addWindowListener(new WindowAdapter() {
+	
+			@Override
+			public void windowClosing(WindowEvent e) {
+				// TODO send to server "quit"
+			}
+		});
+		
 		// Add Listeners
 		textField.addActionListener(new ActionListener() {
 			/**
@@ -66,6 +78,7 @@ public class ChatClient {
 	 * Prompt for and return the address of the server.
 	 */
 	private String getServerAddress() {
+		// TODO Überarbeiten mit anderen Elementen
 		do{
 			hostname = JOptionPane.showInputDialog(frame, "Enter IP Address of the Server:", "Welcome to RNP",
 					JOptionPane.QUESTION_MESSAGE); 
