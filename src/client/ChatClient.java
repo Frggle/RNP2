@@ -4,12 +4,12 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
@@ -58,6 +58,7 @@ public class ChatClient {
 			@Override
 			public void windowClosing(WindowEvent e) {
 				// TODO send to server "quit"
+			    out.println("QUIT");
 			}
 		});
 		
@@ -78,7 +79,50 @@ public class ChatClient {
 	 * Prompt for and return the address of the server.
 	 */
 	private String getServerAddress() {
-		// TODO Überarbeiten mit anderen Elementen
+//	    
+//	    JFrame frame = new JFrame("Connect to Server");
+//	    JPanel panel = new JPanel();
+//	    panel.setLayout(new FlowLayout());
+//	    
+//	    JLabel label = new JLabel("Enter IP Address of the Server: ");
+//	    
+//	    JTextField input = new JTextField(10);
+//	    	    
+//	    JButton okButton = new JButton();
+//	    okButton.setText("connect");
+//	    okButton.setEnabled(false);
+//	   
+//	    input.addActionListener(new ActionListener()
+//        {
+//            @Override
+//            public void actionPerformed(ActionEvent e)
+//            {
+//                if(!input.getText().isEmpty()) {
+//                    okButton.setEnabled(true);
+//                }
+//            }
+//        });
+//	    
+//	    okButton.addActionListener(new ActionListener() {
+//            @Override
+//            public void actionPerformed(ActionEvent e) {
+//                hostname = input.getText();
+//                frame.dispose();                                
+//            }
+//        });
+//	    
+//	    panel.add(label);
+//	    panel.add(okButton);
+//	    panel.add(input);
+//	   	    
+//	    frame.add(panel);
+//	    frame.setSize(100, 50);
+//	    frame.setLocationRelativeTo(null);
+//	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//	    frame.setVisible(true);
+//	    
+//	    
+//		// TODO
 		do{
 			hostname = JOptionPane.showInputDialog(frame, "Enter IP Address of the Server:", "Welcome to RNP",
 					JOptionPane.QUESTION_MESSAGE); 
@@ -108,6 +152,8 @@ public class ChatClient {
 		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		out = new PrintWriter(socket.getOutputStream(), true);
 		
+		// TODO Check if ServerSocket is available 
+		
 		boolean serviceRequested = true;
 				
 		// Process all messages from server, according to the protocol.
@@ -122,7 +168,7 @@ public class ChatClient {
 				messageArea.append(line.substring(8) + "\n");
 			} else if(line.startsWith("QUIT")) {
 				serviceRequested = false;
-				out.println(nickname + " has disconnected");
+//				out.println(nickname + " has disconnected");
 				JOptionPane.showMessageDialog(frame, "You left the conversation.", "Good bye", JOptionPane.OK_OPTION);
 				frame.dispose();
 			}
