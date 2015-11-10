@@ -11,7 +11,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -136,6 +135,7 @@ public class ChatServer {
                     if (name == null) {
                         return;
                     }
+                    writeServerLog("        ", name + " SUBMITNAME");
                     synchronized (users) {
                         if (!users.contains(name)) {
                             users.add(name);
@@ -148,7 +148,16 @@ public class ChatServer {
                 // socket's print writer to the set of all writers so
                 // this client can receive broadcast messages.
                 out.println("NAMEACCEPTED");
+                writeServerLog("        ", name + " NAMEACCEPTED");
+
+                for(PrintWriter writer : writers) {
+                	writer.println("MESSAGE        " + name + " joined");
+                }
+                writeServerLog("        ", name + " joined");
                 writers.add(out);
+
+                Calendar cal = Calendar.getInstance();
+                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
 
                 // Accept messages from this client and broadcast them.
                 // Ignore other clients that cannot be broadcasted to.
@@ -158,15 +167,13 @@ public class ChatServer {
                         return;
                     } else if (input.toUpperCase().startsWith("/QUIT")) {
                         out.println("QUIT");
-                        DateFormat dateFormat = new SimpleDateFormat("HH:MM");
-                        Date date = new Date();
+                        writeServerLog("        ", name + " disconnected");
                         for (PrintWriter writer : writers) {
-                            session.add(name + " (" + dateFormat.format(date)
-                                    + ") disconnected");
                             writer.println("MESSAGE " + name + " ("
-                                    + dateFormat.format(date) + ") disconnected");
+                                    + sdf.format(cal.getTime()) + ") disconnected");
                         }
                     } else if (input.toUpperCase().startsWith("/USER")) {
+                    	writeServerLog(name, input);
                         out.println("MESSAGE        list of users:");
                         for (String user : users) {
                             if (!user.equals(name)) {
@@ -174,18 +181,16 @@ public class ChatServer {
                             }
                         }
                     } else if (input.toUpperCase().startsWith("/HELP")) {
+                    	writeServerLog(name, input);
                         out.println("MESSAGE        /user => list of connected users.");
                         out.println("MESSAGE        /quit => disconnect from Chat-Server.");
                     } else {
-                        DateFormat dateFormat = new SimpleDateFormat("HH:MM");
-                        Date date = new Date();
                         for (PrintWriter writer : writers) {
-                            session.add(name + " (" + dateFormat.format(date)
-                                    + ") : " + input);
+                            writeServerLog(name, input);
                             writer.println("MESSAGE " + name + " ("
-                                    + dateFormat.format(date) + ") : " + input);
+                                    + sdf.format(cal.getTime()) + ") : " + input);
                         }
-                        textArea.append(session.get(session.size() - 1) + "\n");
+                        
                     }
                 }
             } catch (IOException e) {
@@ -204,6 +209,14 @@ public class ChatServer {
                 } catch (IOException e) {
                 }
             }
+        }
+        
+        private void writeServerLog(String beforeDate, String afterDate) {
+        	Calendar cal = Calendar.getInstance();
+            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
+        	
+        	session.add(beforeDate + " (" + sdf.format(cal.getTime()) + ") : " + afterDate);
+        	textArea.append(session.get(session.size() - 1) + "\n");
         }
     }
 }

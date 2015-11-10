@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
@@ -35,7 +34,7 @@ public class ChatClient {
 	
 	private static ChatClient client;
 	private String nickname = "anonym";
-	private String hostname;	
+	private String hostname;
 	private final int PORT = 56789;
 	
 	/**
@@ -54,11 +53,10 @@ public class ChatClient {
 		
 		// 
 		frame.addWindowListener(new WindowAdapter() {
-	
+			
 			@Override
 			public void windowClosing(WindowEvent e) {
-				// TODO send to server "quit"
-			    out.println("QUIT");
+				out.println("/QUIT");
 			}
 		});
 		
@@ -79,53 +77,10 @@ public class ChatClient {
 	 * Prompt for and return the address of the server.
 	 */
 	private String getServerAddress() {
-//	    
-//	    JFrame frame = new JFrame("Connect to Server");
-//	    JPanel panel = new JPanel();
-//	    panel.setLayout(new FlowLayout());
-//	    
-//	    JLabel label = new JLabel("Enter IP Address of the Server: ");
-//	    
-//	    JTextField input = new JTextField(10);
-//	    	    
-//	    JButton okButton = new JButton();
-//	    okButton.setText("connect");
-//	    okButton.setEnabled(false);
-//	   
-//	    input.addActionListener(new ActionListener()
-//        {
-//            @Override
-//            public void actionPerformed(ActionEvent e)
-//            {
-//                if(!input.getText().isEmpty()) {
-//                    okButton.setEnabled(true);
-//                }
-//            }
-//        });
-//	    
-//	    okButton.addActionListener(new ActionListener() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                hostname = input.getText();
-//                frame.dispose();                                
-//            }
-//        });
-//	    
-//	    panel.add(label);
-//	    panel.add(okButton);
-//	    panel.add(input);
-//	   	    
-//	    frame.add(panel);
-//	    frame.setSize(100, 50);
-//	    frame.setLocationRelativeTo(null);
-//	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//	    frame.setVisible(true);
-//	    
-//	    
-//		// TODO
-		do{
+		// TODO
+		do {
 			hostname = JOptionPane.showInputDialog(frame, "Enter IP Address of the Server:", "Welcome to RNP",
-					JOptionPane.QUESTION_MESSAGE); 
+					JOptionPane.QUESTION_MESSAGE);
 		} while(hostname.isEmpty());
 		return hostname;
 	}
@@ -134,18 +89,18 @@ public class ChatClient {
 	 * Prompt for and return the desired screen name.
 	 */
 	private String getName() {
-		do{
+		do {
 			nickname = JOptionPane.showInputDialog(frame, "Choose a screen name:", "Screen name selection",
-					JOptionPane.PLAIN_MESSAGE);		
+					JOptionPane.PLAIN_MESSAGE);
 		} while(nickname.isEmpty());
 		return nickname;
 	}
-	
+		
 	/**
 	 * Connects to the server then enters the processing loop.
 	 */
 	private void run() throws IOException {
-		
+				
 		// Make connection and initialize streams
 		String serverAddress = getServerAddress();
 		Socket socket = new Socket(serverAddress, PORT);
@@ -155,21 +110,26 @@ public class ChatClient {
 		// TODO Check if ServerSocket is available 
 		
 		boolean serviceRequested = true;
-				
+		
 		// Process all messages from server, according to the protocol.
 		while(serviceRequested) {
-			String line = in.readLine();
-			if(line.startsWith("SUBMITNAME")) {
-				out.println(getName());
-				frame.setTitle(frame.getTitle() + " as " + nickname);
-			} else if(line.startsWith("NAMEACCEPTED")) {
-				textField.setEditable(true);
-			} else if(line.startsWith("MESSAGE")) {
-				messageArea.append(line.substring(8) + "\n");
-			} else if(line.startsWith("QUIT")) {
+			try {
+				String line = in.readLine();
+				if(line.startsWith("SUBMITNAME")) {
+					out.println(getName());
+					frame.setTitle(frame.getTitle() + " as " + nickname);
+				} else if(line.startsWith("NAMEACCEPTED")) {
+					textField.setEditable(true);
+				} else if(line.startsWith("MESSAGE")) {
+					messageArea.append(line.substring(8) + "\n");
+				} else if(line.startsWith("QUIT")) {
+					serviceRequested = false;
+					JOptionPane.showMessageDialog(frame, "You left the conversation.", "Good bye", JOptionPane.OK_OPTION);
+					frame.dispose();
+				} 
+			} catch(NullPointerException e) {
 				serviceRequested = false;
-//				out.println(nickname + " has disconnected");
-				JOptionPane.showMessageDialog(frame, "You left the conversation.", "Good bye", JOptionPane.OK_OPTION);
+				JOptionPane.showMessageDialog(frame, "The Chat-Server is down.", "Attention", JOptionPane.OK_OPTION);
 				frame.dispose();
 			}
 		}
