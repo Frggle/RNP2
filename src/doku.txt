@@ -1,6 +1,0 @@
-Aufgabe 1:
-- TCP für Server-Client Kommunikation, da zuverlaessige, reihenfolgeerhaltende Uebertragung gewaehrleitet ist
-- Skizze beifuegen!!
-
-Aufgabe 2:
-- 
