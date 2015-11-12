@@ -1,5 +1,6 @@
 package client;
 
+import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
@@ -35,6 +36,7 @@ public class ChatClient {
 	private JFrame frame = new JFrame("HAW - RN");	// Chat-Fenster
 	private JTextField textField = new JTextField(40);	// Eingabezeile 
 	private JTextArea messageArea = new JTextArea(8, 40);	// Ausgabebereich von allen Chat-Mitgliedern
+	private JScrollPane scrollPane = new JScrollPane(messageArea);
 	
 	private String nickname = "anonym";	// Initial Nickname
 	
@@ -54,9 +56,9 @@ public class ChatClient {
 	private void builtGUI() {
 		// Layout GUI
 		textField.setEditable(false);	// wird erst nach erfolgreichem Anmelden am Chat-Server aktiviert
-		messageArea.setEditable(false);	// Nachrichten-Bereich kann nicht veraendert werden
-		frame.getContentPane().add(textField, "North");
-		frame.getContentPane().add(new JScrollPane(messageArea), "Center");
+		messageArea.setEditable(false);	// Nachrichten-Bereicha kann nicht veraendert werden
+		frame.getContentPane().add(textField, BorderLayout.SOUTH);
+		frame.getContentPane().add(scrollPane, "Center");
 		frame.pack();
 		
 		// Listener auf das Beenden/ Schliessen des Fensters 
@@ -169,10 +171,12 @@ public class ChatClient {
 				// Nickname wurde vom Server akzeptiert -> Eingabefeld wird aktiviert
 				} else if(line.startsWith("NAMEACCEPTED")) {
 					textField.setEditable(true);
+					textField.requestFocusInWindow();
 				
 				// Server schickt Chat-Nachricht an Client zum Anzeigen im Ausgabebereich 
 				} else if(line.startsWith("MESSAGE")) {
 					messageArea.append(line.substring(8) + "\n");
+					scrollPane.getVerticalScrollBar().setValue(scrollPane.getVerticalScrollBar().getMaximum());
 					
 				// Server schickt Bestaetigung; Client erfolgreich abgemeldet
 				} else if(line.startsWith("QUIT")) {
