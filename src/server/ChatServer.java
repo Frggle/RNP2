@@ -195,8 +195,8 @@ public class ChatServer {
 						// Wenn eine Nachricht an alle gehen soll
 					} else {
 						synchronized(writers) {
+							writeServerLog(name, input);
 							for(PrintWriter writer : writers) {
-								writeServerLog(name, input);
 								writer.println("MESSAGE " + name + " (" + sdf.format(cal.getTime()) + ") : " + input);
 							}
 						}

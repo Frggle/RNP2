@@ -83,6 +83,8 @@ public class ChatClient {
 			 * Sobald die ENTER-Taste gedrueckt wurde, wird der Inhalt an den Chat-Server geschickt.
 			 * Anschließend wird die Eingabezeile entleert/ geloescht
 			 */
+			
+			// TODO neuen Thread starten
 			public void actionPerformed(ActionEvent e) {
 				out.println(textField.getText());
 				textField.setText("");
