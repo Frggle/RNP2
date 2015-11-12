@@ -24,58 +24,81 @@ public class ChatServer {
 	
 	private static final int PORT = 56789; // Port, als Konstante
 	
-	private static List<String> users = new ArrayList<String>();	// Liste alles Mitglieder im Chat-Raum
-	private static List<PrintWriter> writers = new ArrayList<PrintWriter>();	// Liste aller PrintWriters (out to client)
-	private static List<String> session = new ArrayList<String>();	// Liste aller gesendeten Nachrichten; serverseitig
+	private List<String> users = new ArrayList<String>();	// Liste alles Mitglieder im Chat-Raum
+	private List<PrintWriter> writers = new ArrayList<PrintWriter>();	// Liste aller PrintWriters (out to client)
+	private List<String> session = new ArrayList<String>();	// Liste aller gesendeten Nachrichten; serverseitig
 	
-	private static JFrame logFrame;	// Server-Log Fenster
-	private static JTextArea logTextArea;	// Anzeigebereich des Logs
-	private static JScrollPane scrollPane = new JScrollPane(logTextArea);
+	private JFrame logFrame;	// Server-Log Fenster
+	private JTextArea logTextArea;	// Anzeigebereich des Logs
+	private JScrollPane scrollPane = new JScrollPane(logTextArea);
 	
 	/**
-	 * main Methode; die ein Server-Log-Fenster erstellt, einen Port beobachtet und neue Handler-Threads startet
+	 * Konstruktor 
+	 * Erzeugt die GUI
 	 */
-	public static void main(String[] args) throws Exception {
-		System.out.print("Chat Server wurde gestartet");
-		
-		ServerSocket listener = new ServerSocket(PORT);	// TCP Server Socket
+	public ChatServer() {
 		
 		// Layout GUI
 		logFrame = new JFrame("Chat Server - Log");
 		logTextArea = new JTextArea(20, 40);
 		logTextArea.setEditable(false);
+		scrollPane = new JScrollPane(logTextArea);
 		logFrame.getContentPane().add(scrollPane, "Center");
 		logFrame.pack();
 		logFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		logFrame.setVisible(true);
 		
-		// Basis Infos werden dem Log beigefuegt
-		DateFormat dateformat = new SimpleDateFormat("yyyy/MM/dd");
-		Calendar cal = Calendar.getInstance();
-		logTextArea.append("Der Chat Server laeuft unter der IP: ");
-		logTextArea.append(InetAddress.getLocalHost().getHostAddress() + "\n");
-		logTextArea.append("---" + dateformat.format(cal.getTime()) + "---\n\n");
-		
-		/**
-		 * Endlosschleife und nimmt jede eingehende Verbindungsanfrage (von Clients) an. Startet fuer jede Verbindung
-		 * einen Thread ("Handler").
-		 */
-		Socket connectionSocket;	// TCP-Standard-Socket
+	}
+	
+	/**
+	 * Verbindet sich mit den Clients.
+	 * Ein Port wird beobachtet und neue Handler-Threads gestartet
+	 */
+	private void startServer() {
 		try {
-			while(true) {
-				connectionSocket = listener.accept();	// "Hand-Shake"
-				new Handler(connectionSocket).start();	// Handler-Thread mit Socket
+			ServerSocket listener = new ServerSocket(PORT);	// TCP Server Socket
+			
+			// Basis Infos werden dem Log beigefuegt
+			DateFormat dateformat = new SimpleDateFormat("yyyy/MM/dd");
+			Calendar cal = Calendar.getInstance();
+			logTextArea.append("Der Chat Server laeuft unter der IP: ");
+			logTextArea.append(InetAddress.getLocalHost().getHostAddress() + "\n");
+			logTextArea.append("---" + dateformat.format(cal.getTime()) + "---\n\n");
+			
+			/**
+			 * Endlosschleife und nimmt jede eingehende Verbindungsanfrage (von Clients) an. Startet fuer jede
+			 * Verbindung einen Thread ("Handler").
+			 */
+			Socket connectionSocket;	// TCP-Standard-Socket
+			try {
+				while(true) {
+					connectionSocket = listener.accept();	// "Hand-Shake"
+					new Handler(connectionSocket).start();	// Handler-Thread mit Socket
+				}
+			} finally {
+				listener.close();	// Verbindungsabbau
 			}
-		} finally {
-			listener.close();	// Verbindungsabbau
+		} catch(IOException e) {
+			e.printStackTrace();
 		}
+		
+	}
+	
+	/**
+	 * main Methode
+	 */
+	public static void main(String[] args) throws Exception {
+		System.out.print("Chat Server wurde gestartet");
+		
+		// Erzeugt Server Instanz und startet diesen
+		new ChatServer().startServer();
 	}
 	
 	/**
 	 * Jeder Client besitzt seinen eigenen Handler-Thread; verwaltet die Verbindung (Socket) zum Chat-Server und
 	 * uebertraegt die Nachrichten.
 	 */
-	private static class Handler extends Thread {
+	private class Handler extends Thread {
 		private String name;	// Client Benutzername
 		private Socket socket;	// TCP-Standard-Socket
 		private BufferedReader in;	// Eingangsstream vom Client
@@ -171,7 +194,7 @@ public class ChatServer {
 						writeServerLog("", "        /quit => disconnect from Chat-Server.");
 						// Wenn eine Nachricht an alle gehen soll
 					} else {
-						synchronized (writers) {
+						synchronized(writers) {
 							for(PrintWriter writer : writers) {
 								writeServerLog(name, input);
 								writer.println("MESSAGE " + name + " (" + sdf.format(cal.getTime()) + ") : " + input);
